@@ -55,9 +55,8 @@ export default function ChatSidebar() {
     if (!user?.id) return;
     const storageKey = getStorageKey(user.id);
     const cached = sessionStorage.getItem(storageKey);
-    const loadedFlag = sessionStorage.getItem(getStorageKey('loaded'));
 
-    if (cached && loadedFlag === 'true') {
+    if (cached) {
       try {
         setConversations(JSON.parse(cached));
         setLoading(false);
@@ -67,18 +66,38 @@ export default function ChatSidebar() {
     }
   }, [user?.id]);
 
+
   const loadConversations = async (silent = false) => {
     if (!user?.id) return;
 
     try {
       if (!silent) setLoading(true);
       const data = await getAllConversations(user.id);
-      setConversations(data);
 
-      // Cache with user-specific key
+      // Merge with existing optimistic entries so they don't flash away
+      // while the DB request is in-flight
+      setConversations(prev => {
+        const optimisticEntries = prev.filter(c => c.isOptimistic);
+        const merged = data.map(dbConv => {
+          const optimistic = optimisticEntries.find(o => o.id === dbConv.id);
+          // If DB title is null but we have an optimistic title, keep it
+          if (optimistic && !dbConv.title) {
+            return { ...dbConv, title: optimistic.title, isOptimistic: false };
+          }
+          return dbConv;
+        });
+        // Keep any optimistic entries not yet confirmed in DB
+        optimisticEntries.forEach(o => {
+          if (!merged.some(f => f.id === o.id)) {
+            merged.unshift(o);
+          }
+        });
+        return merged;
+      });
+
+      // Write only real DB data to cache — optimistic entries are transient
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(getStorageKey(user.id), JSON.stringify(data));
-        sessionStorage.setItem(getStorageKey('loaded'), 'true');
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -88,14 +107,16 @@ export default function ChatSidebar() {
     }
   };
 
-  // Event listeners for real-time updates
   useEffect(() => {
     if (!user?.id) return;
 
     const handleNewConversation = (e: Event) => {
       const customEvent = e as CustomEvent<ConversationWithOptimistic>;
       const newConv = customEvent.detail;
-      setConversations((prev) => [newConv, ...prev]);
+      setConversations(prev => {
+        if (prev.some(c => c.id === newConv.id)) return prev;
+        return [newConv, ...prev];
+      });
     };
 
     const handleRefresh = () => {
@@ -141,9 +162,12 @@ export default function ChatSidebar() {
 
         // Update cache
         if (user?.id) {
-          const updated = conversations.filter((c) => c.id !== conversationId);
+          const updated = conversations.filter(
+            c => c.id !== conversationId && !c.isOptimistic
+          );
           sessionStorage.setItem(getStorageKey(user.id), JSON.stringify(updated));
         }
+      
       } else {
         toast.error('Failed to delete conversation. Please try again.');
       }

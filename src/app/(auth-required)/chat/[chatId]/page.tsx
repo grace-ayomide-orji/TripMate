@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, UIMessage } from "ai";
-import { useState, useEffect, useRef, FormEvent } from "react";
+import { useState, useEffect, useRef, SubmitEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from 'next/link'
 import { useAuth } from "@/contexts/AuthContext";
@@ -59,6 +59,7 @@ export default function ExistingChat() {
         const payload = pending.fileParts.length > 0
             ? { parts: [{ type: 'text' as const, text: pending.text }, ...pending.fileParts] }
             : { text: pending.text };
+
         // Check localStorage first
         const alreadyUsed = localStorage.getItem("usedTripmateToken") === "true"
         if (alreadyUsed) {
@@ -79,7 +80,10 @@ export default function ExistingChat() {
           sendMessage(payload)
           localStorage.setItem("usedTripmateToken", "true")
         })
+
       }
+
+      
 
       // Returning to an existing chat — load history from DB
       setIsLoadingHistory(true);
@@ -125,7 +129,7 @@ export default function ExistingChat() {
     container.scrollTop = container.scrollHeight;
   }, [messages]);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: SubmitEvent) => {
       e.preventDefault();
       const trimmedInput = input.trim();
       if (!trimmedInput || status === "submitted" || status === "streaming") return;
@@ -165,6 +169,7 @@ export default function ExistingChat() {
         setShowLimitModal(true)
         return
       }
+      
       await sendMessage(payload);
       } catch (error) {
       console.error("Failed to send message:", error);
