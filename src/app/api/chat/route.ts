@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fetchWeather } from "@/lib/fetchWeather";
 import { setHistory, getHistory } from "@/lib/store";
 import { TripCard, PackingList } from "@/lib/schemas";
+import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 const gatewayProvider = createGatewayProvider({
     apiKey: process.env.AI_GATEWAY_API_KEY
@@ -48,7 +49,17 @@ export async function POST(request:Request){
                 headers: { 'Content-Type': 'application/json' }
             });
         }
-        const { messages, conversationId, userId }: RequestBody = await request.json();
+
+        const supabaseServer = await createServerSupabaseClient()
+
+        // Get the authenticated user
+        const { data: { user }, error: userError } = await supabaseServer.auth.getUser()
+        if (userError || !user) {
+            console.error('Unauthorized:', userError)
+            return new Response('Unauthorized', { status: 401 })
+        }
+
+        const { messages, conversationId }: RequestBody = await request.json();
         const finalConversationId = conversationId || crypto.randomUUID();
 
         const cleanedMessages = messages.filter((msg) => {
@@ -183,7 +194,8 @@ export async function POST(request:Request){
               await setHistory(
                 finalConversationId, 
                 modelMessagesForStorage, 
-                userId || "anonymous"
+                user.id,
+                supabaseServer
               );
             }
         });

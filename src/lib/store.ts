@@ -102,10 +102,13 @@ export async function getAllConversations(userId: string): Promise<ConversationL
  * @param conversationId - The conversation ID
  * @returns Generated title or null
  */
-export async function generateConversationTitle(conversationId: string): Promise<string | null> {
+
+export async function generateConversationTitle(
+  conversationId: string,
+  supabaseClient = supabase
+): Promise<string | null> {
   try {
-    // Get the first user message
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('messages')
       .select('content')
       .eq('conversation_id', conversationId)
@@ -119,36 +122,34 @@ export async function generateConversationTitle(conversationId: string): Promise
     }
 
     const message = data.content as ModelMessage
-    
-    // Extract text from message content
     let text = ''
     if (typeof message.content === 'string') {
       text = message.content
     } else if (Array.isArray(message.content)) {
-      // Handle multi-part messages
       const textPart = message.content.find((part: any) => part.type === 'text')
       text = (textPart as TextPart)?.text || ''
     }
 
-    // Generate title: first 50 characters
     const title = text.slice(0, 50).trim()
     return title ? (title.length === 50 ? title + '...' : title) : 'New Conversation'
-    
   } catch (error) {
     console.error('Error generating title:', error)
     return 'New Conversation'
   }
 }
 
-
 /**
  * Update conversation title
  * @param conversationId - The conversation ID
  * @param title - The new title
  */
-export async function updateConversationTitle( conversationId: string, title: string): Promise<void> {
+export async function updateConversationTitle(
+  conversationId: string,
+  title: string,
+  supabaseClient = supabase
+): Promise<void> {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('conversations')
       .update({ title })
       .eq('id', conversationId)
@@ -160,18 +161,21 @@ export async function updateConversationTitle( conversationId: string, title: st
     console.error('Unexpected error updating title:', error)
   }
 }
-
-
 /**
  * Save conversation messages to database
  * @param conversationId - The unique ID of the conversation
  * @param messages - Array of all messages in the conversation
  * @param userId - User ID to associate with conversation (required)
  */
-export async function setHistory( conversationId: string,  messages: ModelMessage[], userId: string): Promise<void> {
+
+export async function setHistory(
+  conversationId: string,
+  messages: ModelMessage[],
+  userId: string,
+  supabaseClient = supabase  
+): Promise<void> {
   try {
-    // Check if conversation exists
-    const { data: existingConv } = await supabase
+    const { data: existingConv } = await supabaseClient
       .from('conversations')
       .select('id, title')
       .eq('id', conversationId)
@@ -180,58 +184,51 @@ export async function setHistory( conversationId: string,  messages: ModelMessag
     const isNewConversation = !existingConv
 
     // Upsert conversation
-    const { error: conversationError } = await supabase  
+    const { error: conversationError } = await supabaseClient
       .from('conversations')
-      .upsert({ 
-        id: conversationId,
-        user_id: userId,  
-        updated_at: new Date().toISOString()
-      }, { 
-        onConflict: 'id',
-        ignoreDuplicates: false
-      })
-    
+      .upsert(
+        {
+          id: conversationId,
+          user_id: userId,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id', ignoreDuplicates: false }
+      )
+
     if (conversationError) {
       console.error('Error upserting conversation:', conversationError)
       return
     }
 
-    // Get existing message count
-    const { count } = await supabase 
+    const { count } = await supabaseClient
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('conversation_id', conversationId)
 
     const newMessages = messages.slice(count || 0)
-    
-    if (newMessages.length === 0) {
-      return
-    }
+    if (newMessages.length === 0) return
 
-    // Insert new messages
-    const { error: messagesError } = await supabase
+    const { error: messagesError } = await supabaseClient
       .from('messages')
       .insert(
-        newMessages.map(msg => ({
+        newMessages.map((msg) => ({
           conversation_id: conversationId,
           role: msg.role,
-          content: msg
+          content: msg,
         }))
       )
-    
+
     if (messagesError) {
       console.error('Error inserting messages:', messagesError)
       return
     }
 
-    // Auto-generate title for new conversations (first user message)
-    if (isNewConversation && !existingConv) {
-      const title = await generateConversationTitle(conversationId)
+    if (isNewConversation) {
+      const title = await generateConversationTitle(conversationId, supabaseClient)
       if (title) {
-        await updateConversationTitle(conversationId, title)
+        await updateConversationTitle(conversationId, title, supabaseClient)
       }
     }
-    
   } catch (error) {
     console.error('Unexpected error saving history:', error)
   }

@@ -1,6 +1,7 @@
 "use client"
-import { useState, useRef, FormEvent } from "react";
+import { useState, useRef, SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import PagesLayout from "@/components/Layout";
 import ChatForm from "@/components/ChatForm";
 import { FileUploadState } from "@/lib/types";
@@ -9,6 +10,7 @@ import { uploadFilesToCloudinary } from "@/lib/uploadFilesToCloudinary";
 
 export default function NewChatPage() {
     const router = useRouter();
+    const { user } = useAuth()
     const [input, setInput] = useState("");
     const [files, setFiles] = useState<FileList | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -17,7 +19,7 @@ export default function NewChatPage() {
     const hasUploadErrors = fileUploadStates.some(f => f.status === 'error');
     const [isSending, setIsSending] = useState(false)
   
-    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: SubmitEvent) => {
         e.preventDefault();
         const trimmedInput = input.trim();
         if (!trimmedInput) return; 
@@ -48,6 +50,17 @@ export default function NewChatPage() {
         window.dispatchEvent(new CustomEvent('newConversation', {
             detail: { id: newChatId, title: trimmedInput, isOptimistic: true }
         }));
+
+        if (user?.id) { 
+          const storageKey = `tripmate-sidebar-${user.id}`;
+          const cached = sessionStorage.getItem(storageKey);
+          const existing = cached ? JSON.parse(cached) : [];
+          sessionStorage.setItem(storageKey, JSON.stringify([
+            { id: newChatId, title: trimmedInput, isOptimistic: true },
+            ...existing
+          ]));
+        }
+
         router.push(`/chat/${newChatId}`);
         }catch(error){
             console.log(error)

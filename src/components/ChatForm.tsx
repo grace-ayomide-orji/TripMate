@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, FormEvent } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatStatus } from "ai";
 import { BsPaperclip, BsFileEarmarkPdfFill, BsFillFileEarmarkImageFill, BsFileEarmarkTextFill} from "react-icons/bs";
 import { TiTimes } from "react-icons/ti";
@@ -21,7 +21,7 @@ interface ChatFormProps {
     status?: ChatStatus;
     isSending?: boolean;
     handleStop?: () => void;
-    handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
+    handleSubmit: (e: React.SubmitEvent) => void;
 }
 
 export default function ChatForm({ 
@@ -90,7 +90,7 @@ export default function ChatForm({
         }
     };
 
-    const handleInput = (e: FormEvent<HTMLTextAreaElement>) => {
+    const handleInput = (e: React.InputEvent<HTMLTextAreaElement>) => {
         const target = e.currentTarget;
         target.style.height = 'auto';
         target.style.height = Math.min(target.scrollHeight, 200) + 'px'; 

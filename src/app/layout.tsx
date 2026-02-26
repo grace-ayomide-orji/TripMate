@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://tripmate-v1.vercel.app'),
+  metadataBase: new URL('https://trip-mate-v1.vercel.app'),
   title: {
     default: 'TripMate - AI-Powered Travel Planning Assistant',
     template: '%s | TripMate'
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://tripmate-v1.vercel.app',
+    url: 'https://trip-mate-v1.vercel.app',
     title: 'TripMate - AI-Powered Travel Planning Assistant',
     description: 'Plan smarter, travel brighter with AI-powered travel planning.',
     siteName: 'TripMate',

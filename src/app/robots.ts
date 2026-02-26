@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = 'https://tripmate-v1.vercel.app'
+  const baseUrl = 'https://trip-mate-v1.vercel.app'
 
   return {
     rules: [
