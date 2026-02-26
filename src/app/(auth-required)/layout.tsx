@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { LoadingComponent } from '@/components/Loading'
 
 export default function ProtectedLayout({
   children,
@@ -23,12 +24,7 @@ export default function ProtectedLayout({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="loader mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
+      <LoadingComponent/>
     )
   }
 

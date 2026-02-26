@@ -263,7 +263,7 @@ export default function ExistingChat() {
 }
 
 // ─── Message renderers ────────────────────────────────────────────────────────
-export function renderMessagePart(part: any, messageId: string, index: number) {
+function renderMessagePart(part: any, messageId: string, index: number) {
   if (part.type?.startsWith("tool-")) {
     const toolName = part.type.replace("tool-", "");
     const { state, input, output, errorText } = part;
@@ -367,7 +367,7 @@ export function renderMessagePart(part: any, messageId: string, index: number) {
   }
 }
 
-export function renderTripCard(data: TripCardData, stableKey: string) {
+function renderTripCard(data: TripCardData, stableKey: string) {
   return (
     <div key={stableKey} className="relative overflow-hidden border border-purple-200 rounded-2xl bg-gradient-to-br from-purple-50 via-white to-blue-50 shadow-lg hover:shadow-xl transition-shadow duration-300 my-4">
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-5">
@@ -423,7 +423,7 @@ export function renderTripCard(data: TripCardData, stableKey: string) {
   );
 }
 
-export function renderPackingList(data: PackingListData, stableKey: string) {
+function renderPackingList(data: PackingListData, stableKey: string) {
   return (
     <div key={stableKey} className="relative overflow-hidden border border-green-200 rounded-2xl bg-gradient-to-br from-green-50 via-white to-teal-50 shadow-lg hover:shadow-xl transition-shadow duration-300 my-4">
       <div className="bg-gradient-to-r from-green-600 to-teal-600 p-5">
