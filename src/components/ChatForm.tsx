@@ -4,12 +4,18 @@ import { ChatStatus } from "ai";
 import { BsPaperclip, BsFileEarmarkPdfFill, BsFillFileEarmarkImageFill, BsFileEarmarkTextFill} from "react-icons/bs";
 import { TiTimes } from "react-icons/ti";
 import {  IoChevronBackOutline, IoChevronForwardOutline } from "react-icons/io5"
+import { FileUploadState } from "@/lib/types";
+
+
 
 interface ChatFormProps {
     input: string;
     setInput: (value: string) => void;
     files?: FileList | undefined;
-    fileInputRef?: React.RefObject<HTMLInputElement>; 
+    fileUploadStates?: FileUploadState[];
+    isUploadingFiles?: boolean;
+    hasUploadErrors?: boolean;
+    fileInputRef: React.RefObject<HTMLInputElement | null>; 
     onFileChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onRemoveFile?: (index: number) => void;
     status?: ChatStatus;
@@ -22,7 +28,10 @@ export default function ChatForm({
     input, 
     setInput, 
     files,
-    fileInputRef, 
+    fileInputRef,
+    fileUploadStates,
+    isUploadingFiles,
+    hasUploadErrors,
     onFileChange,
     onRemoveFile,
     status = "ready", 
@@ -89,11 +98,11 @@ export default function ChatForm({
 
     const handleEnterKeySubmit = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSubmit(e as unknown as FormEvent<HTMLFormElement>);
+          e.preventDefault();
+          e.currentTarget.form?.requestSubmit();
         }
     };
-
+    
     return (
         <form className="w-full mx-auto px-4" onSubmit={handleSubmit}>
             <div className="bg-white border border-gray-300 px-[10px] py-[10px] rounded-3xl shadow-sm hover:shadow-md transition-shadow grid grid-cols-1 gap-2">
@@ -101,30 +110,77 @@ export default function ChatForm({
                  {files && files.length > 0 && (
                     <div className="relative">
                         <div ref={filePreviewRef} onScroll={handleFileScroll} className="px-2 py-2 flex flex-nowrap gap-2 overflow-x-auto scrollbar-hide">
-                            {Array.from(files).map((file, index) => (
-                                <div key={index} className="flex items-center rounded-[10px] px-[10px] border border-gray-300 py-2 text-sm">
-                                    <span className={`mr-[5px] text-[20px] ${file.type.startsWith('image/') ? 'text-[#9999ff]' : file.type === 'application/pdf' ? 'text-[#ff0000]' : 'text-[#0000ff]'}`}>
-                                        {file.type.startsWith('image/') ? <BsFillFileEarmarkImageFill/> : 
-                                            file.type === 'application/pdf' ? <BsFileEarmarkPdfFill/> : <BsFileEarmarkTextFill/>}
+                            {Array.from(files).map((file, index) => {
+                            const uploadState = fileUploadStates?.[index];
+                            const isUploading = uploadState?.status === 'uploading';
+                            const isError = uploadState?.status === 'error';
+                            const isSuccess = uploadState?.status === 'success';
+
+                            return (
+                                <div 
+                                key={index} 
+                                className={`flex items-center rounded-[10px] px-[10px] border py-2 text-sm transition-colors ${
+                                    isError 
+                                    ? 'border-red-400 bg-red-50' 
+                                    : isSuccess 
+                                    ? 'border-green-400 bg-green-50' 
+                                    : isUploading
+                                    ? 'border-blue-300 bg-blue-50'
+                                    : 'border-gray-300'
+                                }`}
+                                >
+                                {/* File icon */}
+                                <span className={`mr-[5px] text-[20px] ${
+                                    isError ? 'text-red-500' :
+                                    isSuccess ? 'text-green-500' :
+                                    file.type.startsWith('image/') ? 'text-[#9999ff]' : 
+                                    file.type === 'application/pdf' ? 'text-[#ff0000]' : 'text-[#0000ff]'
+                                }`}>
+                                    {file.type.startsWith('image/') ? <BsFillFileEarmarkImageFill/> : 
+                                    file.type === 'application/pdf' ? <BsFileEarmarkPdfFill/> : <BsFileEarmarkTextFill/>}
+                                </span>
+
+                                {/* File name */}
+                                <span className="truncate max-w-[150px] text-gray-800">
+                                    {file.name}
+                                </span>
+
+                                {/* Status indicator */}
+                                <span className="ml-2 text-xs">
+                                    {isUploading && (
+                                    <span className="text-blue-500 flex items-center gap-1">
+                                        <span className="loader-xs"></span> uploading...
                                     </span>
-                                    <span className="truncate max-w-[150px] text-gray-800">
-                                        {file.name}
-                                    </span>
-                                    <span className="ml-2 text-xs text-gray-500">
-                                        ({(file.size / 1024).toFixed(1)}KB)
-                                    </span>
-                                    {onRemoveFile && (
-                                        <button
-                                            type="button"
-                                            onClick={() => onRemoveFile(index)}
-                                            className="ml-2 bg-[#000] h-[20px] w-[20px] rounded-[50%] flex items-center justify-center text-[#fff] text-[14px]"
-                                            aria-label={`Remove ${file.name}`}
-                                        >
-                                            <TiTimes/>
-                                        </button>
                                     )}
+                                    {isError && (
+                                    <span className="text-red-500" title={uploadState?.errorMessage}>
+                                        ✕ failed
+                                    </span>
+                                    )}
+                                    {isSuccess && (
+                                    <span className="text-green-500">✓ uploaded</span>
+                                    )}
+                                    {!uploadState && (
+                                    <span className="text-gray-500">({(file.size / 1024).toFixed(1)}KB)</span>
+                                    )}
+                                </span>
+
+                                {/* Remove button - only show when not uploading */}
+                                {onRemoveFile && !isUploading && (
+                                    <button
+                                    type="button"
+                                    onClick={() => onRemoveFile(index)}
+                                    className={`ml-2 h-[20px] w-[20px] rounded-[50%] flex items-center justify-center text-[#fff] text-[14px] ${
+                                        isError ? 'bg-red-500' : 'bg-[#000]'
+                                    }`}
+                                    aria-label={`Remove ${file.name}`}
+                                    >
+                                    <TiTimes/>
+                                    </button>
+                                )}
                                 </div>
-                            ))}
+                            );
+                            })}
                         </div>
                         {showIndicator && ( <div className={`bg-[#fff] absolute ${indicatorDirection === 'right' ? 'right-[0px] shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.1)]' : 'left-[0px] shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]'} top-[0px] w-[35px] bottom-[0px] z-10 flex items-center justify-center`}>
                                 <button type="button" className="text-[#000] cursor-pointer w-[26.5px] h-[26.5px] rounded-[50%] flex items-center justify-center bg-transparent hover:bg-[#dcdcdc] disabled:opacity-50 disabled:cursor-not-allowed" onClick={() => scrollToEnd(indicatorDirection)} disabled={status === "streaming" || isSending}>
